@@ -1,0 +1,51 @@
+idot2, yuval_lavie55
+Ido Toledo (205385479), Yuval Lavie (316320134)
+EX: 2
+
+FILES:
+
+
+REMARKS:
+These are some remarks that
+I want the graders to know
+about this submission.
+
+ANSWERS:
+
+Q1:
+a:
+The siglongjmp function receives as an argument a sigjmp_buf struct and restores the environment most recently saved
+by sigsetjmp on that sigjmp_buf. The function also receives an int value that becomes the return value of
+the sigsetjmp function that we jump to, if the value is 0 it will be changed to 1. All that happens on the same thread
+The sigsetjmp function receives as an argument a sigjmp_buf struct and saves the current environment on it that will be
+later used by siglongjmp. The function also receives the savemask argument that for all values different from 0 will
+also save the current signal mask in the environment.
+b:
+Using sigsetjmp and siglongjmp allows us to save and restore the current environment with our signalmask number.
+Masking is the process of determining which signals we block and dont block, so we must know the signalmask of
+incoming signals in order to differentiate between them.
+
+Q2:
+One general use of user-level threads can be a game applications that has 2 main processes: the first is receiving
+user input and the second is displaying text on the screen.
+Most of the game time will be spent on doing context switch between the two processes so if they are implemented as
+user-level threads the overhead of the context switching will be significantly smaller.
+
+Q3:
+Advantages of Chrome tabs being user_level threads:
+* Switching between tabs is a cheaper action
+* We can control which tab to prioritize
+Disadvantages of Chrome tabs being user_level threads:
+* An interrupt from a single tab can shutdown all open tabs
+* Controlling which tab to prioritize can result in poor OS optimization
+
+Q4:
+a:
+b:
+c:
+
+Q5:
+Real time is the amount of time it takes to complete a task in the real world, like using a
+stopwatch to measure a 10K run. Virtual time is the amount of time it takes to complete a task on the computer
+when the time is measured on a virtual clock (that ignores interruptions), like for example the amount of time it
+takes to gain a level in a video-game measured the in-game clock.
