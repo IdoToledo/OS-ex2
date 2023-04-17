@@ -6,9 +6,10 @@
 #include <queue>
 #include <set>
 #include <unordered_map>
-#include "resources/uthreads.h"
+#include "uthreads.h"
 #define SECOND 1000000
 #define ERROR (-1)
+#define T_BLOCKED 0
 #define JB_SP 6
 #define JB_PC 7
 
@@ -27,14 +28,15 @@ class IThread
         STATE tstate;
         char stack[STACK_SIZE];
         int t_q_counter;
+        int sleep_counter = T_BLOCKED;
         IThread(int id=0, STATE state=RUNNING, int count=1) : tid(id), tstate(state), t_q_counter(count){}
 };
 
-std::unordered_map<int, IThread*> all_threads;
+std::unordered_map<int, IThread*> all_threads;  // tid and pointer to thread
 std::queue<IThread*>ready_q;
 IThread* running_thread;
 std::set<IThread*> block_set;
-int q_counter; // Counts total amount of quantums
+int q_counter; // Counts total amount of quantums passed
 struct itimerval timer;
 struct sigaction sa;
 sigjmp_buf env[MAX_THREAD_NUM];
@@ -42,24 +44,50 @@ sigjmp_buf env[MAX_THREAD_NUM];
 int timer_setup(int quantum_usecs);
 void print_err(bool is_system, const std::string& str);
 
+void jumping(int thread);
+
 void schedule()
 {
     running_thread = ready_q.front();
     running_thread->tstate = RUNNING;
+    running_thread->t_q_counter++;
+    q_counter++;
     ready_q.pop();
 }
 
 void quantum_handler(int sig)
 {
-    std::cout << "QUANTA!" << std::endl;
+//    std::cout << "QUANTA!" << std::endl;
+//    running_thread->t_q_counter++;
+//    q_counter++;
     int current_thread = running_thread->tid;
     running_thread->tstate = READY;
-    running_thread->t_q_counter++;
-    q_counter++;
+
     ready_q.push(running_thread);
 
+    for (auto* thread : block_set)
+    {
+        if (thread->sleep_counter != T_BLOCKED)
+        {
+            thread->sleep_counter--;
+            if (thread->sleep_counter == T_BLOCKED)
+            {
+                uthread_resume(thread->tid); // order of resume doesn't matter
+            }
+        }
+    }
+
     schedule();
-    int ret_val = sigsetjmp(env[current_thread], 1);
+    jumping(current_thread);
+//    int ret_val = sigsetjmp(env[current_thread], 1);
+//    if (ret_val == 0)
+//    {
+//        siglongjmp(env[running_thread->tid], 1);
+//    }
+}
+
+void jumping(int set_thread) {
+    int ret_val = sigsetjmp(env[set_thread], 1);
     if (ret_val == 0)
     {
         siglongjmp(env[running_thread->tid], 1);
@@ -100,7 +128,7 @@ void print_err(bool is_system,const std::string& str) {
 
 int uthread_init(int quantum_usecs)
 {
-    if (quantum_usecs < 0)
+    if (quantum_usecs <= 0)
     {
         print_err(false,"Invalid quantum_usecs");
         return ERROR;
@@ -180,11 +208,12 @@ IThread* pop_thread_from_ready_q(int tid)
 {
     IThread* res;
     IThread* tmp;
-    for (int i = 0; i < ready_q.size(); i++)
+    int ready_size = (int) ready_q.size();
+    for (int i = 0; i < ready_size; i++)
     {
         tmp = ready_q.front();
         ready_q.pop();
-        if (tmp->tid == tid)
+        if (tmp->tid != tid)
         {
             ready_q.push(tmp);
         }
@@ -194,6 +223,7 @@ IThread* pop_thread_from_ready_q(int tid)
     }
     return res;
 }
+
 void clear_all()
 {
     for (auto pair : all_threads)
@@ -220,6 +250,7 @@ void clear_thread(int tid)
     IThread* tmp = all_threads[tid];
     all_threads.erase(tid);
     delete tmp;
+
 }
 
 
@@ -230,34 +261,47 @@ int uthread_terminate(int tid)
         print_err(false, "Invalid thread ID");
         return ERROR;
     }
+
     if (tid == 0)
     {
         clear_all();
         exit(0);
     }
+    STATE check_running = all_threads[tid]->tstate;
     clear_thread(tid);
+    if (check_running == RUNNING)
+    {
+        jumping(tid);
+    }
     return EXIT_SUCCESS;
 }
 
 
 int uthread_block(int tid)
 {
-    if (all_threads.find(tid) == all_threads.end() || tid == 0)
+    if (all_threads.find(tid) == all_threads.end() || tid == 0)  //TODO check
     {
         print_err(false, "Invalid thread ID to block");
         return ERROR;
     }
     IThread* blocked_thread;
+    int running_thread_tid = running_thread->tid;
+    blocked_thread = all_threads[tid];
+    block_set.insert(blocked_thread);
     if (all_threads[tid]->tstate == READY)
     {
         blocked_thread = pop_thread_from_ready_q(tid);
+        blocked_thread->tstate = BLOCKED;
     }
     else if (all_threads[tid]->tstate == RUNNING)
     {
-        blocked_thread = all_threads[tid];
+
         schedule();
+        blocked_thread->tstate = BLOCKED;
+        timer.it_value.tv_sec = 0;
+        timer.it_value.tv_usec = 0;
+        jumping(running_thread_tid);
     }
-    block_set.insert(blocked_thread);
     return EXIT_SUCCESS;
 }
 
@@ -269,10 +313,11 @@ int uthread_resume(int tid)
         return ERROR;
     }
     IThread* resumed = all_threads[tid];
-    if (all_threads[tid]->tstate == BLOCKED)
+    if (resumed->tstate == BLOCKED)
     {
         block_set.erase(resumed);
         ready_q.push(resumed);
+        resumed->tstate = READY;
     }
     return EXIT_SUCCESS;
 }
@@ -280,11 +325,12 @@ int uthread_resume(int tid)
 
 int uthread_sleep(int num_quantums)
 {
-    if (running_thread->tid == 0)
-    {
+    if (running_thread->tid == 0) {
         print_err(false, "You can't put the main thread to sleep!");
         return ERROR;
     }
+    running_thread->sleep_counter = num_quantums;
+    return uthread_block(running_thread->tid);
 }
 
 
@@ -310,41 +356,39 @@ int uthread_get_quantums(int tid)
     return all_threads[tid]->t_q_counter;
 }
 
-void thread1(void)
-{
-    std::cout << "Thread1" << std::endl;
+//void thread1(void)
+//{
+//    std::cout << "Thread1" << std::endl;
+//
+//    int i = 0;
+//    while (true)
+//    {
+//        ++i;
+////        std::cout << "in thread1 (" << i <<")"<< std::endl;
+//        if (i % 3 == 0)
+//        {
+////            std::cout << "thread1: yielding" << std::endl;
+//        }
+////        usleep(SECOND / 3);
+//    }
+//}
 
-    int i = 0;
-    while (true)
-    {
-        ++i;
-//        std::cout << "in thread1 (" << i <<")"<< std::endl;
-        if (i % 3 == 0)
-        {
-//            std::cout << "thread1: yielding" << std::endl;
-        }
-//        usleep(SECOND / 3);
-    }
-}
-
-int main() {
-    std::cout << "Hello, World!" << std::endl;
-
-    if (uthread_init(SECOND) == 0)
-    {
-        uthread_spawn(thread1);
-    }
-    std::cout << "Thread0" << std::endl;
-    int i = 0;
-    while (true)
-    {
-        ++i;
-//        std::cout << "in thread0 (" << i <<")"<< std::endl;
-        if (i % 3 == 0)
-        {
-//            std::cout <<"thread0: yielding" << std::endl;
-        }
-//        usleep(SECOND);
-    }
-    return 0;
-}
+//int main() {
+//    std::cout << "Hello, World!" << std::endl;
+//
+//    if (uthread_init(SECOND) == 0)
+//    {
+//        uthread_spawn(thread1);
+//    }
+//    std::cout << "Thread0" << std::endl;
+//    int i = 0;
+//    while (true)
+//    {
+//        ++i;
+////        std::cout << "in thread0 (" << i <<")"<< std::endl;
+//        if (i % 3 == 0)
+//        {
+////            std::cout <<"thread0: yielding" << std::endl;
+//        }
+//    }
+//}
