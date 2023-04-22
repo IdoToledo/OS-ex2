@@ -57,9 +57,9 @@ void schedule()
 
 void quantum_handler(int sig)
 {
-//    std::cout << "QUANTA!" << std::endl;
-//    running_thread->t_q_counter++;
-//    q_counter++;
+    fflush(stdout);
+    std::cout << "QUANTA!" << std::endl;
+    fflush(stdout);
     int current_thread = running_thread->tid;
     running_thread->tstate = READY;
 
@@ -353,6 +353,7 @@ int uthread_get_quantums(int tid)
         print_err(false, "Invalid thread ID");
         return ERROR;
     }
+    printf("%d\n",all_threads[tid]->t_q_counter);
     return all_threads[tid]->t_q_counter;
 }
 
