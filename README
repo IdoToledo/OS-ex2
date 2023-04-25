@@ -3,12 +3,9 @@ Ido Toledo (205385479), Yuval Lavie (316320134)
 EX: 2
 
 FILES:
+uthreads.cpp
+Makefile
 
-
-REMARKS:
-These are some remarks that
-I want the graders to know
-about this submission.
 
 ANSWERS:
 

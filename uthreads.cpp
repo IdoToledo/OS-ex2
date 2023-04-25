@@ -219,7 +219,7 @@ int uthread_spawn(thread_entry_point entry_point)
 
   address_t sp = (address_t) thread->stack + STACK_SIZE - sizeof(address_t);
   address_t pc = (address_t) entry_point;
-  sigsetjmp(env[thread->tid], 1); // TODO shaat kabala
+  sigsetjmp(env[thread->tid], 1);
   (env[thread->tid]->__jmpbuf)[JB_SP] = translate_address(sp);
   (env[thread->tid]->__jmpbuf)[JB_PC] = translate_address(pc);
   if (sigemptyset(&env[thread->tid]->__saved_mask) == ERROR)
@@ -347,7 +347,7 @@ int uthread_block(int tid)
 
 int uthread_resume(int tid)
 {
-  sigprocmask(SIG_BLOCK, &new_set, nullptr); // TODO can we put this after error check?
+  sigprocmask(SIG_BLOCK, &new_set, nullptr);
   if (IThread::all_threads.find(tid) == IThread::all_threads.end())
   {
     print_err(false, "Invalid thread ID");
