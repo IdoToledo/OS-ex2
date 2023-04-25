@@ -10,6 +10,7 @@
 
 
 int gotit = 0;
+struct itimerval timer;
 
 
 void timer_handler(int sig)
@@ -22,7 +23,6 @@ void timer_handler(int sig)
 int main(void)
 {
     struct sigaction sa = {0};
-    struct itimerval timer;
 
     // Install timer_handler as the signal handler for SIGVTALRM.
     sa.sa_handler = &timer_handler;
@@ -39,15 +39,17 @@ int main(void)
     timer.it_interval.tv_sec = 3;    // following time intervals, seconds part
     timer.it_interval.tv_usec = 0;    // following time intervals, microseconds part
 
+    printf("%d\n", ITIMER_VIRTUAL);
     // Start a virtual timer. It counts down whenever this process is executing.
     if (setitimer(ITIMER_VIRTUAL, &timer, NULL))
     {
         printf("setitimer error.");
+      return -1;
     }
 
     for (;;)
     {
-        if (gotit)
+      if (gotit)
         {
             printf("Got it!\n");
             gotit = 0;

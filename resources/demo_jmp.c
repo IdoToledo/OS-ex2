@@ -24,6 +24,7 @@ typedef unsigned long address_t;
 address_t translate_address(address_t addr)
 {
     address_t ret;
+
     asm volatile("xor    %%fs:0x30,%0\n"
         "rol    $0x11,%0\n"
                  : "=g" (ret)
@@ -63,7 +64,7 @@ char stack0[STACK_SIZE];
 char stack1[STACK_SIZE];
 sigjmp_buf env[2];
 int current_thread = -1;
-
+sigset_t new_set;
 
 void jump_to_thread(int tid)
 {
@@ -111,6 +112,11 @@ void thread1(void)
     {
         ++i;
         printf("in thread1 (%d)\n", i);
+      if (i % 10 == 0)
+      {
+        printf("thread1: unblock\n");
+        yield();
+      }
         if (i % 5 == 0)
         {
             printf("thread1: yielding\n");

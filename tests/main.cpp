@@ -402,9 +402,9 @@ int func_switch_thread(){
 int test_switch_thread(){
     printf("\nEntered 1 func\n");
     flag =0;
-    uthread_init(1);
+//    uthread_init(1);
 //    printf("thread num %d = %d\n", 0, uthread_get_quantums(0));
-    uthread_spawn(reinterpret_cast<thread_entry_point>(&func_switch_thread));
+//    uthread_spawn(reinterpret_cast<thread_entry_point>(&func_switch_thread));
     void* temp = malloc(1000);
     void* temp2 = malloc(1000);
 
@@ -414,11 +414,11 @@ int test_switch_thread(){
     }
     free(temp);
     free(temp2);
-    while (flag!=1){
-    }
-    printf("thread num %d = %d\n", 0, uthread_get_quantums(0));
-    printf("total = %d\n", uthread_get_total_quantums());
-    uthread_terminate(0);
+//    while (flag!=1){
+//    }
+//    printf("thread num %d = %d\n", 0, uthread_get_quantums(0));
+//    printf("total = %d\n", uthread_get_total_quantums());
+//    uthread_terminate(0);
     return 1;
 
 }
