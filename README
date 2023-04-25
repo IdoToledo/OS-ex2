@@ -40,9 +40,13 @@ Disadvantages of Chrome tabs being user_level threads:
 * Controlling which tab to prioritize can result in poor OS optimization
 
 Q4:
-a:
-b:
 c:
+Just typing kill 58739 (our pid) is in fact, a hardware interrupt that came from using the keyboard.
+We used the shell 'Kill pid' command in order to terminate the shotwell process.
+The 'Kill pid' command uses a system-call interrupt for killing the shotwell process, by sending the SIGTERM signal.
+Next, the operating system decides what to do with the signal, in this case it sends data to the shotwell application,
+asking it to shut down.
+
 
 Q5:
 Real time is the amount of time it takes to complete a task in the real world, like using a
